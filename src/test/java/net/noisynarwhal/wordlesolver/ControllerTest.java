@@ -13,7 +13,7 @@ import java.util.List;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@WebMvcTest(Controller.class)
+@WebMvcTest(ApiController.class)
 @Import(VersionConfig.class)
 class ControllerTest {
 

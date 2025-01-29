@@ -10,18 +10,18 @@ import java.util.*;
 
 @RestController
 @RequestMapping("${api.base-path}")
-public class Controller {
+public class ApiController {
     private static final String WORDS_FILE = "/words.txt";
     private static final Set<String> WORD_LIST = new TreeSet<>();
     private final VersionConfig versionConfig;
 
     static {
         try {
-            try (final BufferedReader reader = new BufferedReader(new InputStreamReader(Objects.requireNonNull(Controller.class.getResourceAsStream(WORDS_FILE))))) {
+            try (final BufferedReader reader = new BufferedReader(new InputStreamReader(Objects.requireNonNull(ApiController.class.getResourceAsStream(WORDS_FILE))))) {
                 String line;
                 while ((line = reader.readLine()) != null) {
                     line = line.trim().toLowerCase();
-                    Controller.WORD_LIST.add(line);
+                    ApiController.WORD_LIST.add(line);
                 }
             }
 
@@ -31,7 +31,7 @@ public class Controller {
     }
 
     @Autowired
-    public Controller(VersionConfig versionConfig) {
+    public ApiController(VersionConfig versionConfig) {
         this.versionConfig = versionConfig;
     }
 
@@ -53,7 +53,7 @@ public class Controller {
             consumes = MediaType.APPLICATION_JSON_VALUE
     )
     public Map<String, Object> solve(@RequestBody List<Guess> guesses) {
-        final WordleSolver solver = new WordleSolver(Controller.WORD_LIST);
+        final WordleSolver solver = new WordleSolver(ApiController.WORD_LIST);
         for(final Guess guess : guesses) {
             solver.update(guess);
         }
