@@ -8,6 +8,7 @@ import java.util.*;
  */
 public class WordleSolver {
     public static final int MIN_SUGGESTIONS = 5;
+    
     private final Set<String> possibleWords = new HashSet<>();
     private final Set<String> allWords = new HashSet<>();
 
@@ -151,6 +152,11 @@ public class WordleSolver {
      * @return the entropy of guessing 'guess'
      */
     private double calculateEntropy(String guess) {
+        // Handle edge case where no possible words remain
+        if (this.possibleWords.isEmpty()) {
+            return 0.0;
+        }
+
         final Map<String, Integer> patternCounts = new HashMap<>();
         final int totalWords = this.possibleWords.size();
 
@@ -160,13 +166,14 @@ public class WordleSolver {
             patternCounts.merge(pattern, 1, Integer::sum);
         }
 
-        // Calculate entropy using the pattern probabilities
+        // Calculate entropy using Math.log2 for better performance and clarity
         double entropy = 0.0;
         for (int count : patternCounts.values()) {
             final double probability = (double) count / totalWords;
             entropy -= probability * (Math.log(probability) / Math.log(2));
         }
 
+        // Round to 2 decimal places
         return Math.round(entropy * 100) / 100.0;
     }
 
