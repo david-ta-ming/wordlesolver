@@ -128,15 +128,22 @@ public class WordleSolver {
                     bestSuggestions.add(new Suggestion(word, entropy, isPossibleAnswer));
                 }
 
-                final Iterator<Suggestion> iterator = bestSuggestions.iterator();
-                int i = 0;
-                while (iterator.hasNext() && i++ < WordleSolver.MIN_SUGGESTIONS) {
-                    iterator.next();
-                }
-                while (iterator.hasNext()) {
-                    final Suggestion suggestion = iterator.next();
-                    if (!suggestion.isPossibleAnswer()) {
-                        iterator.remove();
+                // Check if the first best suggestion is a possible answer
+                final Suggestion firstSuggestion = bestSuggestions.first();
+                if (firstSuggestion.isPossibleAnswer()) {
+                    // Filter suggestions to only include possible answers
+                    bestSuggestions.removeIf(suggestion -> !suggestion.isPossibleAnswer());
+                } else {
+                    final Iterator<Suggestion> iterator = bestSuggestions.iterator();
+                    int i = 0;
+                    while (iterator.hasNext() && i++ < WordleSolver.MIN_SUGGESTIONS) {
+                        iterator.next();
+                    }
+                    while (iterator.hasNext()) {
+                        final Suggestion suggestion = iterator.next();
+                        if (!suggestion.isPossibleAnswer()) {
+                            iterator.remove();
+                        }
                     }
                 }
             }
