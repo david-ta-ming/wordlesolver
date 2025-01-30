@@ -1,10 +1,13 @@
 package net.noisynarwhal.wordlesolver;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.test.web.servlet.MockMvc;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.Arrays;
@@ -15,7 +18,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(ApiController.class)
 @Import(VersionConfig.class)
-class ControllerTest {
+class ApiControllerTest {
+    private static final Logger logger = LoggerFactory.getLogger(ApiControllerTest.class);
 
     @Autowired
     private MockMvc mockMvc;
@@ -70,19 +74,45 @@ class ControllerTest {
 
     @Test
     void testSolveWithMultipleGuesses() throws Exception {
-        List<Guess> guesses = Arrays.asList(
-                new Guess("TARES", "BBYGB"),
-                new Guess("BIPOD", "BBBBB"),
-                new Guess("FLEER", "GBYGG"),
-                new Guess("ALWAY", "BBBBB")
-        );
+        logger.info("Testing multiple guesses");
 
-        mockMvc.perform(post("/api/v1/solve")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(guesses)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.suggestions").isArray())
-                .andExpect(jsonPath("$.suggestions[0].word").value("FEVER"))
-                .andExpect(jsonPath("$.suggestions[0].isPossibleAnswer").value(true));
+        {
+            logger.info("Guesses: [TARES, BIPOD, FLEER, ALWAY]");
+            final List<Guess> guesses = Arrays.asList(
+                    new Guess("TARES", "BBYGB"),
+                    new Guess("BIPOD", "BBBBB"),
+                    new Guess("FLEER", "GBYGG"),
+                    new Guess("ALWAY", "BBBBB")
+            );
+
+            mockMvc.perform(post("/api/v1/solve")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(guesses)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.suggestions").isArray())
+                    .andExpect(jsonPath("$.suggestions[0].word").value("FEVER"))
+                    .andExpect(jsonPath("$.suggestions[0].isPossibleAnswer").value(true));
+        }
+        {
+            logger.info("Guesses: [TARES, SULPH]");
+            final List<Guess> guesses = Arrays.asList(
+                    new Guess("TARES", "BGBYY"),
+                    new Guess("SULPH", "YBGBB")
+            );
+
+            final MockHttpServletResponse response = mockMvc.perform(post("/api/v1/solve")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(guesses)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.suggestions").isArray())
+                    .andExpect(jsonPath("$.suggestions.length()").value(2))
+                    .andExpect(jsonPath("$.suggestions[0].word").value("FALSE"))
+                    .andExpect(jsonPath("$.suggestions[1].word").value("VALSE"))
+                    .andReturn()
+                    .getResponse();
+
+            final String responseContent = response.getContentAsString();
+            logger.info("Response content: {}", responseContent);
+        }
     }
 }
