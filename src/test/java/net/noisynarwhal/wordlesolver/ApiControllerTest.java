@@ -85,13 +85,18 @@ class ApiControllerTest {
                     new Guess("ALWAY", "BBBBB")
             );
 
-            mockMvc.perform(post("/api/v1/solve")
+            final MockHttpServletResponse response = mockMvc.perform(post("/api/v1/solve")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(guesses)))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.suggestions").isArray())
                     .andExpect(jsonPath("$.suggestions[0].word").value("FEVER"))
-                    .andExpect(jsonPath("$.suggestions[0].isPossibleAnswer").value(true));
+                    .andExpect(jsonPath("$.suggestions[0].isPossibleAnswer").value(true))
+                    .andReturn()
+                    .getResponse();
+
+            final String responseContent = response.getContentAsString();
+            logger.info("Response content: {}", responseContent);
         }
         {
             logger.info("Guesses: [TARES, SULPH]");
@@ -108,6 +113,27 @@ class ApiControllerTest {
                     .andExpect(jsonPath("$.suggestions.length()").value(2))
                     .andExpect(jsonPath("$.suggestions[0].word").value("FALSE"))
                     .andExpect(jsonPath("$.suggestions[1].word").value("VALSE"))
+                    .andReturn()
+                    .getResponse();
+
+            final String responseContent = response.getContentAsString();
+            logger.info("Response content: {}", responseContent);
+        }
+        {
+            logger.info("Guesses: [TARES, COLIN, HUMPY]");
+            final List<Guess> guesses = Arrays.asList(
+                    new Guess("TARES", "YBBBB"),
+                    new Guess("COLIN", "BGBBB"),
+                    new Guess("HUMPY", "BBYBB")
+            );
+
+            final MockHttpServletResponse response = mockMvc.perform(post("/api/v1/solve")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(guesses)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.suggestions").isArray())
+                    .andExpect(jsonPath("$.suggestions.length()").value(1))
+                    .andExpect(jsonPath("$.suggestions[0].word").value("MOTTO"))
                     .andReturn()
                     .getResponse();
 

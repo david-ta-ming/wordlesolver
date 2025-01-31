@@ -1,5 +1,7 @@
 package net.noisynarwhal.wordlesolver;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import java.util.*;
 
 /**
@@ -8,9 +10,18 @@ import java.util.*;
  */
 public class WordleSolver {
     public static final int MIN_SUGGESTIONS = 5;
-    
+    private static final double LOG2 = Math.log(2);
     private final Set<String> possibleWords = new HashSet<>();
     private final Set<String> allWords = new HashSet<>();
+    private static final Logger logger = LoggerFactory.getLogger(WordleSolver.class);
+
+    /**
+     * Create a new WordleSolver with the default word list.
+     */
+    public WordleSolver() {
+        this.possibleWords.addAll(WordList.getWords());
+        this.allWords.addAll(WordList.getWords());
+    }
 
     /**
      * Create a new WordleSolver with the given word list.
@@ -20,9 +31,11 @@ public class WordleSolver {
     public WordleSolver(Iterable<String> wordList) {
         for (final String s : wordList) {
             final String word = s.trim().toUpperCase();
-            if (word.length() == 5) {
+            if (word.matches("^[A-Z]{5}$")) {
                 this.possibleWords.add(word);
                 this.allWords.add(word);
+            } else {
+                logger.warn("Invalid word in word list: {}", word);
             }
         }
 
@@ -99,58 +112,70 @@ public class WordleSolver {
     }
 
     /**
-     * Get the best suggestions based on the current state of the solver.
-     * Returns the top MIN_SUGGESTIONS suggestions and any additional suggestions that are possible answers.
+     * Generate the best suggestions for the next Wordle guess based on the current state of possible words.
+     * The method considers both entropy and whether a word is a possible answer to prioritize suggestions.
+     * <p>
+     * The process follows these steps:
+     * 1. If no possible words remain, an empty set is returned.
+     * 2. For each word in the complete word list (`allWords`), the entropy is calculated to determine
+     *    how informative the guess would be. Words that are still valid possible answers are marked as such.
+     * 3. The suggestions are sorted by entropy (high to low) and added to the result set.
+     * 4. If the top suggestion (i.e., the word with the highest entropy) is a possible answer,
+     *    non-answer words are removed from the suggestions.
+     * 5. If the top suggestion is not a possible answer, at least `MIN_SUGGESTIONS` are retained,
+     *    and additional non-answer words are filtered out.
+     * <p>
+     * This approach helps balance between finding an optimal guess and providing enough variety in suggestions.
      *
-     * @return a sorted set of suggestions
+     * @return a sorted set of suggestions, ordered by descending entropy
      */
     public synchronized SortedSet<Suggestion> getBestSuggestions() {
-
-        final SortedSet<Suggestion> bestSuggestions = new TreeSet<>();
-
-        if (!this.possibleWords.isEmpty()) {
-
-            // If only one word remains, return it
-            if (this.possibleWords.size() == 1) {
-
-                final String word = this.possibleWords.iterator().next();
-                final double entropy = calculateEntropy(word);
-                bestSuggestions.add(new Suggestion(word, entropy, true));
-
-            } else {
-
-                // Consider all valid words as potential guesses, not just possible answers
-                for (final String word : this.allWords) {
-
-                    final double entropy = calculateEntropy(word);
-                    final boolean isPossibleAnswer = this.possibleWords.contains(word);
-
-                    bestSuggestions.add(new Suggestion(word, entropy, isPossibleAnswer));
-                }
-
-                // Check if the first best suggestion is a possible answer
-                final Suggestion firstSuggestion = bestSuggestions.first();
-                if (firstSuggestion.isPossibleAnswer()) {
-                    // Filter suggestions to only include possible answers
-                    bestSuggestions.removeIf(suggestion -> !suggestion.isPossibleAnswer());
-                } else {
-                    final Iterator<Suggestion> iterator = bestSuggestions.iterator();
-                    int i = 0;
-                    while (iterator.hasNext() && i++ < WordleSolver.MIN_SUGGESTIONS) {
-                        iterator.next();
-                    }
-                    while (iterator.hasNext()) {
-                        final Suggestion suggestion = iterator.next();
-                        if (!suggestion.isPossibleAnswer()) {
-                            iterator.remove();
-                        }
-                    }
-                }
-            }
+        // Return an empty set if no possible words remain
+        if (this.possibleWords.isEmpty()) {
+            return Collections.emptySortedSet();
         }
 
+        // Create a sorted set to store suggestions
+        final SortedSet<Suggestion> bestSuggestions = new TreeSet<>();
+
+        // Generate suggestions by calculating entropy for all valid words
+        for (final String word : this.allWords) {
+            final double entropy = calculateEntropy(word);
+            final boolean isPossibleAnswer = this.possibleWords.contains(word);
+            bestSuggestions.add(new Suggestion(word, entropy, isPossibleAnswer));
+        }
+
+        // Check the top suggestion to determine filtering behavior
+        final Suggestion firstSuggestion = bestSuggestions.first();
+
+        if (firstSuggestion.isPossibleAnswer()) {
+            // If the top suggestion is a possible answer, retain only suggestions that are possible answers
+            bestSuggestions.removeIf(suggestion -> !suggestion.isPossibleAnswer());
+        } else {
+            // If the top suggestion is not a possible answer:
+            // 1. Create a temporary set to store our selections
+            SortedSet<Suggestion> selectedSuggestions = new TreeSet<>();
+
+            // 2. Add the top MIN_SUGGESTIONS for information gain
+            bestSuggestions.stream()
+                    .limit(MIN_SUGGESTIONS)
+                    .forEach(selectedSuggestions::add);
+
+            // 3. Add all possible answers for completeness
+            bestSuggestions.stream()
+                    .filter(Suggestion::isPossibleAnswer)
+                    .forEach(selectedSuggestions::add);
+
+            // 4. Replace the original set with our selection
+            bestSuggestions.clear();
+            bestSuggestions.addAll(selectedSuggestions);
+        }
+
+        // Return the sorted set of best suggestions
         return bestSuggestions;
     }
+
+
 
     /**
      * Calculate the entropy of guessing 'guess' based on the current state of the solver.
@@ -175,9 +200,9 @@ public class WordleSolver {
 
         // Calculate entropy using Math.log2 for better performance and clarity
         double entropy = 0.0;
-        for (int count : patternCounts.values()) {
+        for (final int count : patternCounts.values()) {
             final double probability = (double) count / totalWords;
-            entropy -= probability * (Math.log(probability) / Math.log(2));
+            entropy -= probability * (Math.log(probability) / WordleSolver.LOG2);
         }
 
         // Round to 2 decimal places
