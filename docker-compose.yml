@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  wordlesolver:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: wordlesolver
+    ports:
+      - "8080:8080"
+    environment:
+      - JAVA_OPTS=-Xmx512m -Xms256m
+      - SPRING_PROFILES_ACTIVE=prod
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped

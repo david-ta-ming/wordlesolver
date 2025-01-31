@@ -140,7 +140,7 @@ public class WordleSolver {
 
         // Generate suggestions by calculating entropy for all valid words
         for (final String word : this.allWords) {
-            final double entropy = calculateEntropy(word);
+            final double entropy = this.calculateEntropy(word);
             final boolean isPossibleAnswer = this.possibleWords.contains(word);
             bestSuggestions.add(new Suggestion(word, entropy, isPossibleAnswer));
         }
@@ -154,7 +154,7 @@ public class WordleSolver {
         } else {
             // If the top suggestion is not a possible answer:
             // 1. Create a temporary set to store our selections
-            SortedSet<Suggestion> selectedSuggestions = new TreeSet<>();
+            final SortedSet<Suggestion> selectedSuggestions = new TreeSet<>();
 
             // 2. Add the top MIN_SUGGESTIONS for information gain
             bestSuggestions.stream()
