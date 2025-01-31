@@ -12,101 +12,120 @@ A Spring Boot application that helps solve Wordle puzzles using information theo
 
 ## How It Works
 
-### Information Theory and Entropy in Wordle
+This Wordle solver uses information theory to make intelligent guesses. Information theory, developed by Claude Shannon in the 1940s, gives us powerful tools to measure and reason about uncertainty and information. At the heart of our solver is the concept of entropy, which helps us measure how much information we gain from each guess.
 
-The solver uses information theory to determine the best possible guesses. The core concept is entropy, which measures the average amount of information gained from making a particular guess.
+### Understanding Information in Wordle
 
-#### Understanding Entropy in This Context
+When you play Wordle, each guess gives you information through the colored squares:
+- A green square (🟩) tells you exactly what letter goes in that position
+- A yellow square (🟨) tells you a letter that appears somewhere else
+- A gray square (⬛️) tells you a letter that isn't in the word
 
-In Wordle, entropy represents how much a guess will reduce our uncertainty about the target word. The higher the entropy, the more information we expect to gain from that guess.
+Think about your first guess in Wordle. Before you guess, any five-letter word could be the answer. After you guess, the colored squares narrow down the possibilities. The more possibilities your guess can eliminate, the more information it gives you.
 
-##### Entropy Formula
+### The Mathematics of Information
 
-For a given guess word, we calculate its entropy using:
+Information theory tells us that the amount of information we receive is related to how surprised we are by what we learn. If someone tells you something you were almost certain was true, you gain very little information. But if they tell you something unexpected, you gain more information.
 
-H(guess) = -∑ P(pattern) * log₂(P(pattern))
+In mathematical terms, if an event has probability P of occurring, the information we gain from observing that event is -log₂(P) bits. We use log base 2 because information is traditionally measured in bits, where one bit can distinguish between two equally likely possibilities.
+
+Let's understand this with a simple coin flip example. Imagine you have a friend who flipped a coin and knows the result. How much information do you gain when they tell you the outcome?
+
+With a fair coin, heads and tails are equally likely, each with probability 1/2. When your friend tells you the result, you gain -log₂(1/2) = 1 bit of information. This matches our intuition perfectly: one bit is exactly what a computer needs to distinguish between two possibilities (like 0 and 1, or heads and tails).
+
+Now imagine the coin is unfair - it lands on heads 75% of the time. If your friend tells you they got heads, you gain -log₂(3/4) ≈ 0.415 bits of information. But if they tell you they got tails, you gain -log₂(1/4) = 2 bits! This also makes intuitive sense: learning about a rare outcome (tails) tells you more than learning about a common outcome (heads), because the rare outcome is more surprising.
+
+This connects directly to Wordle: some color patterns are more common than others, just like how heads was more common with our unfair coin. Rare patterns give us more information, which is exactly what our entropy calculation measures.
+
+### Entropy Formula
+
+Entropy extends this idea to situations where we might see different outcomes, each with their own probabilities. The entropy formula is:
+
+H = -∑ P(x) × log₂(P(x))
 
 Where:
-- H(guess) is the entropy of the guess word
-- P(pattern) is the probability of getting a specific feedback pattern
-- The sum is taken over all possible feedback patterns
+- H is the entropy (expected information gain)
+- P(x) is the probability of outcome x
+- The sum is taken over all possible outcomes
+- log₂ is the logarithm with base 2
 
-#### Example Calculation
+This formula gives us the average amount of information we expect to gain. Higher entropy means we expect to gain more information from making that guess.
 
-Let's say we're considering the word "STARE" as our guess, and there are 2,315 possible answers remaining:
+### Measuring Information with Entropy in Wordle
 
-1. First, we simulate what pattern we would get for each possible answer:
-   ```
-   STARE vs PAINT -> 🟨⬛️🟨⬛️🟨 (pattern: "YBYBY")
-   STARE vs STAKE -> 🟩🟩🟩⬛️🟩 (pattern: "GGGBG")
-   ... and so on for all possible answers
-   ```
+Let's see how this applies to Wordle. When we make a guess, we'll see a pattern of colored squares. Some patterns are more common than others, and each pattern eliminates different possible answers.
 
-2. We count how many times each pattern occurs and calculate probabilities:
-   ```
-   Pattern "YBYBY": 42 occurrences → P = 42/2315 ≈ 0.018
-   Pattern "GGGBG": 3 occurrences → P = 3/2315 ≈ 0.001
-   ... and so on
-   ```
+For example, let's guess "STARE" and look at what patterns we might see:
+- Against "PAINT", you'd see ⬛️🟩🟩⬛️⬛️ (BGGRB) - matching T and A positions
+- Against "STAKE", you'd see 🟩🟩🟩⬛️🟩 (GGGBG) - matching all but R
+- Against "PAUSE", you'd see ⬛️🟨⬛️⬛️🟩 (BYBGE) - A appears elsewhere, E matches
 
-3. For each pattern, we calculate P * log₂(P):
-   ```
-   For "YBYBY": 0.018 * log₂(0.018) ≈ -0.098
-   For "GGGBG": 0.001 * log₂(0.001) ≈ -0.011
-   ```
+Let's work through a concrete example with a small set of words. Imagine we have just 10 possible answers left, and when we guess "CRANE":
+- Pattern BBYYB appears 5 times (probability = 5/10 = 0.5)
+- Pattern GBBBG appears 3 times (probability = 3/10 = 0.3)
+- Pattern GGGBB appears 2 times (probability = 2/10 = 0.2)
 
-4. Sum all these values and negate to get the final entropy:
-   ```
-   H("STARE") = -(sum of all P * log₂(P)) ≈ 5.87 bits
-   ```
+For each pattern, we calculate P × log₂(P):
+- For BBYYB: 0.5 × log₂(0.5) ≈ -0.500
+- For GBBBG: 0.3 × log₂(0.3) ≈ -0.521
+- For GGGBB: 0.2 × log₂(0.2) ≈ -0.464
 
-#### Why This Works
+Adding these up and negating gives us our entropy:
+-(-0.500 - 0.521 - 0.464) = 1.485 bits
 
-- A high entropy value means the guess tends to split possible answers into many roughly equal-sized groups
-- Each bit of entropy theoretically halves the remaining possibilities
-- The optimal first guess maximizes this entropy value
+What does this number mean? Each bit of entropy represents the power to cut our possibilities in half. With 1.485 bits of entropy, this guess will typically eliminate about 64% of the remaining possibilities (1 - 1/2¹·⁴⁸⁵). A higher entropy value would mean we expect to eliminate even more possibilities.
 
 ### Implementation Details
 
-The entropy calculation is implemented in `WordleSolver.java`:
+The solver calculates entropy for every possible guess and chooses the one with the highest value. Here's how the core calculation works in our code:
 
 ```java
 private double calculateEntropy(String guess) {
+    // Skip if no possible words remain
     if (this.possibleWords.isEmpty()) {
         return 0.0;
     }
 
+    // Count how often each pattern appears
     final Map<String, Integer> patternCounts = new HashMap<>();
     final int totalWords = this.possibleWords.size();
 
-    // Count pattern frequencies
     for (final String possibleAnswer : this.possibleWords) {
+        // Generate the pattern we'd see if this was the answer
         final String pattern = generatePattern(guess, possibleAnswer);
+        // Count how many times we see each pattern
         patternCounts.merge(pattern, 1, Integer::sum);
     }
 
-    // Calculate entropy using the formula H = -∑ P(x) * log₂(P(x))
+    // Calculate entropy using the formula H = -∑ P(x) × log₂(P(x))
     double entropy = 0.0;
     for (int count : patternCounts.values()) {
         final double probability = (double) count / totalWords;
-        entropy -= probability * (Math.log(probability) / Math.log(2));
+        entropy -= probability * (Math.log(probability) / LOG2);
     }
 
+    // Round to 2 decimal places for cleaner output
     return Math.round(entropy * 100) / 100.0;
 }
 ```
 
-### Pattern Generation
+This approach is particularly effective because:
+- It considers all possible answers and patterns
+- It weighs the information value of each possible outcome
+- It helps us eliminate as many possibilities as possible with each guess
+- It adapts as we learn more information from each guess
 
-The pattern generation is a crucial part of the entropy calculation. For each guess-target pair, we generate a pattern following Wordle's rules:
+The solver doesn't just look for high-entropy guesses—it also considers whether a word could be the actual answer. This creates a balance between gathering information and trying to win the game, which is why you'll sometimes see the solver suggest a possible answer even if it's not the highest-entropy guess.
 
-1. First pass marks correct letters in correct positions (🟩)
-2. Second pass marks correct letters in wrong positions (🟨)
-3. Remaining letters are marked as incorrect (⬛️)
+### Trade-offs and Strategy
 
-The implementation handles duplicate letters according to Wordle's rules, where:
-- Each target letter can only be matched once
-- Green matches take priority over yellow matches
+While entropy gives us a powerful way to measure the information value of a guess, it's not the only factor to consider. The solver balances several competing goals:
+
+1. Information Gain: Choosing words with high entropy to learn as much as possible.
+2. Solution Finding: Preferring words that could be the actual answer.
+3. Worst-Case Performance: Considering how bad our position would be if we get unlucky.
+
+This is why you might sometimes see the solver make what seems like a suboptimal guess. It's not just maximizing entropy—it's trying to win the game efficiently while avoiding particularly bad outcomes.
 
 ## API Usage
 
