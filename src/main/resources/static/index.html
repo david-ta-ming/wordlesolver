@@ -106,6 +106,13 @@
             }
         }, [guesses]);
 
+        // Add reset functionality
+        const handleReset = useCallback(() => {
+            setGuesses([{word: '', feedback: 'BBBBB'}]);
+            setSuggestions([]);
+            setError(null);
+        }, []);
+
         // Set up keyboard event listener for physical keyboard support
         useEffect(() => {
             const handleKeyDown = (event) => {
@@ -129,7 +136,7 @@
             return () => {
                 window.removeEventListener('keydown', handleKeyDown);
             };
-        }, [handleBackspace, handleKeyPress, getSuggestions, guesses]);
+        }, [handleBackspace, handleKeyPress, guesses]);
 
         const toggleFeedback = (rowIndex, letterIndex) => {
             const newGuesses = [...guesses];
@@ -188,13 +195,20 @@
                         ))}
                     </div>
 
-                    <div className="text-center mb-6">
+                    <div className="flex justify-center gap-4 mb-6">
                         <button
                             onClick={getSuggestions}
                             disabled={loading}
-                            className="w-full sm:w-auto bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-lg disabled:opacity-50"
+                            className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-lg disabled:opacity-50 w-64"
                         >
-                            {loading ? 'Getting Suggestions...' : 'Get Suggestions'}
+                            {loading ? 'Getting...' : 'Get Suggestions'}
+                        </button>
+
+                        <button
+                            onClick={handleReset}
+                            className="bg-gray-500 hover:bg-gray-600 text-white font-bold py-3 px-6 rounded-lg w-24"
+                        >
+                            Reset
                         </button>
                     </div>
 
@@ -220,10 +234,6 @@
                                          className={`p-2 rounded ${suggestion.isPossibleAnswer ? 'bg-blue-50 border-2 border-blue-200' : 'bg-gray-50'}`}>
                                         <div className="font-mono text-base sm:text-lg">
                                             {suggestion.word}
-                                            {suggestion.isPossibleAnswer &&
-                                                <span
-                                                    className="ml-2 text-xs bg-blue-500 text-white px-1 py-0.5 rounded">✓</span>
-                                            }
                                         </div>
                                         <div className="text-xs sm:text-sm text-gray-600">
                                             Score: {suggestion.entropy.toFixed(2)}
